@@ -105,6 +105,7 @@ public class SettingsActivity extends PreferenceActivity {
     @Override
     protected void onResume() {
         super.onResume();
+		    getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);				
 		    		
 			ComponentName adminComponent = new ComponentName(this, rkr.simplekeyboard.inputmethod.latin.MyDeviceAdminReceiver.class);
 			DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
