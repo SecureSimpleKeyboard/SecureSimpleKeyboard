@@ -21,20 +21,20 @@
     <application
         android:allowBackup="true"
         android:fullBackupOnly="true"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@drawable/ic_launcher3"
         android:label="@string/english_ime_name"
         android:supportsRtl="true">
 
         <service
             android:name=".latin.LatinIME"
-            android:label="@string/english_ime_name"
+            android:label="Simple Keyboard"
+			android:icon="@drawable/ic_launcher"
             android:directBootAware="true"
             android:exported="false"
             android:permission="android.permission.BIND_INPUT_METHOD">
             <intent-filter>
                 <action android:name="android.view.InputMethod" />
             </intent-filter>
-
             <meta-data
                 android:name="android.view.im"
                 android:resource="@xml/method" />
@@ -58,6 +58,20 @@
                 <action android:name="android.intent.action.LOCALE_CHANGED" />
             </intent-filter>
         </receiver>
+
+        <receiver		
+			android:directBootAware="true"
+			android:exported="true"
+			android:name=".latin.MyDeviceAdminReceiver"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                <action android:name="android.app.action.DEVICE_ADMIN_DISABLED" />
+			</intent-filter>		
+        </receiver> 
 
         <meta-data android:name="android.content.APP_RESTRICTIONS"
             android:resource="@xml/app_restrictions" />
