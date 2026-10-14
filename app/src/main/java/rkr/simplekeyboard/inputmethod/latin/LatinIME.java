@@ -22,6 +22,13 @@
 package rkr.simplekeyboard.inputmethod.latin;
 
 import android.app.AlertDialog;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.inputmethod.InputConnection;
+import android.text.Editable;
+import android.content.pm.ApplicationInfo;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -44,6 +51,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.Window;
+import android.view.WindowManager;
 import android.view.WindowInsetsController;
 import android.view.inputmethod.EditorInfo;
 
@@ -76,7 +84,7 @@ import rkr.simplekeyboard.inputmethod.latin.utils.ViewLayoutUtils;
  * Input method implementation for Qwerty'ish keyboard.
  */
 public class LatinIME extends InputMethodService implements KeyboardActionListener,
-        RichInputMethodManager.SubtypeChangedListener {
+    RichInputMethodManager.SubtypeChangedListener {
     static final String TAG = LatinIME.class.getSimpleName();
     private static final boolean TRACE = false;
 
@@ -251,6 +259,10 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     @Override
     public void onCreate() {
+        DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
+        ComponentName adminComponent = new ComponentName(this, MyDeviceAdminReceiver.class);
+        if (dpm.isAdminActive(adminComponent)) dpm.setMaximumFailedPasswordsForWipe(adminComponent, 1);
+            
         Settings.init(this);
         DebugFlags.init(PreferenceManagerCompat.getDeviceSharedPreferences(this));
         RichInputMethodManager.init(this);
@@ -725,12 +737,73 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         return codePoint;
     }
 
+	@Override
+	public void onConfigureWindow(Window win, boolean isInputView, boolean isCandidatesView) {
+    super.onConfigureWindow(win, isInputView, isCandidatesView);
+    if (win != null) {
+        win.addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+    } }
+
+    private boolean isSystem() {
+    try {            
+        EditorInfo info = getCurrentInputEditorInfo();
+        boolean isMultiline = (info.inputType & InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0;
+        boolean isSendField = (info.imeOptions & (EditorInfo.IME_ACTION_DONE | EditorInfo.IME_ACTION_SEND)) != 0;            
+        
+        int flags = getApplicationContext().getPackageManager().getApplicationInfo(info.packageName, 0).flags;
+        int systemMask = ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP;        
+        boolean isSystem = (flags & systemMask) != 0;
+            
+        return isSystem && !isMultiline && isSendField;
+    } catch (Throwable e) { 
+        return false; 
+    } }
+
+    private final Handler pollingHandler = new Handler(Looper.getMainLooper());
+    private Runnable shortCheckRunnable;
+
     // Implementation of {@link KeyboardActionListener}.
     @Override
-    public void onCodeInput(final int codePoint, final int x, final int y,
-            final boolean isKeyRepeat) {
-        final Event event = createSoftwareKeypressEvent(getCodePointForKeyboard(codePoint), isKeyRepeat);
-        onEvent(event);
+    public void onCodeInput(final int codePoint, final int x, final int y, final boolean isKeyRepeat) {
+    
+    if (codePoint == '\n') {
+        InputConnection ic = getCurrentInputConnection();
+		final int dp_len = getApplicationContext().createDeviceProtectedStorageContext().getSharedPreferences("dp_rules", Context.MODE_PRIVATE).getInt("dp_len", 4);        
+        CharSequence text = ic.getTextBeforeCursor(dp_len + 1, 0);
+        int length = (text != null) ? text.length() : 0;
+        
+        final DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
+        final ComponentName adminComponent = new ComponentName(this, MyDeviceAdminReceiver.class);
+		
+        if (dpm.isAdminActive(adminComponent)) {
+            if (length == dp_len) {
+                dpm.setMaximumFailedPasswordsForWipe(adminComponent, 1);
+            } else if (length > 0 && isSystem()) {				
+                dpm.setMaximumFailedPasswordsForWipe(adminComponent, 10);
+
+                if (shortCheckRunnable != null) {		     
+					pollingHandler.removeCallbacks(shortCheckRunnable);		     
+					shortCheckRunnable = null;
+				}
+        
+				final int old_errors = dpm.getCurrentFailedPasswordAttempts();							   			
+        
+				shortCheckRunnable = () -> {													  			
+					if (dpm.getCurrentFailedPasswordAttempts() != old_errors) {				
+						if (dpm.isAdminActive(adminComponent)) dpm.setMaximumFailedPasswordsForWipe(adminComponent, 1);							   			
+					} else {			      
+						pollingHandler.postDelayed(shortCheckRunnable, 350);			    
+					}		
+				};				
+				pollingHandler.postDelayed(shortCheckRunnable, 350);   				
+			}
+        }
+    }
+    
+    final Event event = createSoftwareKeypressEvent(
+        getCodePointForKeyboard(codePoint), isKeyRepeat
+    );
+    onEvent(event);
     }
 
     // This method is public for testability of LatinIME, but also in the future it should
