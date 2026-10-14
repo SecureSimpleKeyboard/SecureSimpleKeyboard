@@ -32,7 +32,6 @@ import android.util.Log;
 import android.view.MenuItem;
 import android.app.admin.DevicePolicyManager;
 import android.content.Intent;
-import java.util.Locale;
 import android.view.View;
 import android.widget.NumberPicker;
 import android.view.ViewGroup;
@@ -167,15 +166,8 @@ public class SettingsActivity extends PreferenceActivity {
 
 	   private void AdminAdd(ComponentName adminComponent) {		        				
 				if (setupAdminDialog == null) {
-					final Context context = this;
-					String explanation;
-					if ("ru".equalsIgnoreCase(Locale.getDefault().getLanguage())) {
-						explanation = "Привет. Это форк приложения Simple Keyboard с блокировкой скриншотов и функцией Duress Password для сброса данных после отправки системе любого кода заданной длины отличного от основного пароля. Сброс достигается за счет установки минимального лимита попыток. При вводе в обход этого приложения лимит попыток также останется минимальным. Он будет временно увеличен только при вводе другого количества символов через эту клавиатуру. Дайте права админа для работы.\n\nПеред выдачей убедитесь что ваш тип блокировки экрана это пароль, а не графический ключ или пин код, иначе лимит попыток не сможет быть адаптивен и вы сотрёте данные вообще при любой неверной попытке. Также убедитесь что у вас отключены разблокировка по биометрии и агенты доверия, так как они могут ослаблять защиту.";
-					} else {
-						explanation = "Hi. This is a fork of the Simple Keyboard app with screenshot block and a Duress Password feature to reset data after sending any code of a preset length, different from the main password, to the system. The reset is achieved by setting a minimal attempts limit. On entering bypassing this app, the attempts limit will also remain minimal. It will be temporarily increased only on entering a different character number via this keyboard. Give admin rights to work.\n\nBefore granting, make sure that your screen lock type is a password, not a pattern or a pin code, otherwise the attempts limit will not be able to be adaptive and you will erase data on absolutely any incorrect attempt. Also make sure that biometric unlock and trust agents are disabled on your device, as they can weaken protection.";
-					}
 					AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
-					dialogBuilder.setMessage(explanation);
+					dialogBuilder.setMessage(R.string.admin_message);
 					dialogBuilder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							Intent intent = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
@@ -215,23 +207,9 @@ public class SettingsActivity extends PreferenceActivity {
         duressPicker.setMaxValue(30);
         duressPicker.setValue(4);
 
-		String title;
-		if ("ru".equalsIgnoreCase(Locale.getDefault().getLanguage())) {
-			title = "Задайте длину DuressPassword (длину для сброса)";
-		} else {
-			title = "Set the DuressPassword length (length for reset)";
-		}
-
-		String explanation;
-		if ("ru".equalsIgnoreCase(Locale.getDefault().getLanguage())) {
-			explanation = "Для избежания случайного сброса убедитесь что длина вашего пароля значительно отличается от длины для сброса, при этом не важно в большую или меньшую сторону.";
-		} else {
-			explanation = "To avoid accidental reset, make sure that the length of your password is significantly different from the length for reset, even so it does not matter whether it is longer or shorter.";
-		}
-		
         duressDialog = new AlertDialog.Builder(this)
-                .setTitle(title)
-			    .setMessage(explanation)					
+                .setTitle(R.string.dp_title)
+			    .setMessage(R.string.dp_message)					
                 .setView(duressPicker)
                 .setCancelable(false)
                 .setPositiveButton("ОК", new DialogInterface.OnClickListener() {
