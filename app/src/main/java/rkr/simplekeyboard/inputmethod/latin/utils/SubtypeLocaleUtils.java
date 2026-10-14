@@ -303,32 +303,40 @@ public final class SubtypeLocaleUtils {
      * @return the default list of subtypes based on the system's languages.
      */
     public static List<Subtype> getDefaultSubtypes(final Resources resources) {
-        final ArrayList<Locale> supportedLocales = new ArrayList<>(sSupportedLocales.length);
-        for (final String localeString : sSupportedLocales) {
-            supportedLocales.add(LocaleUtils.constructLocaleFromString(localeString));
-        }
+    final ArrayList<Locale> supportedLocales = new ArrayList<>(sSupportedLocales.length);
+    for (final String localeString : sSupportedLocales) {
+        supportedLocales.add(LocaleUtils.constructLocaleFromString(localeString));
+    }
 
-        final List<Locale> systemLocales = LocaleUtils.getSystemLocales();
+    final List<Locale> systemLocales = LocaleUtils.getSystemLocales();
 
-        final ArrayList<Subtype> subtypes = new ArrayList<>();
-        final HashSet<Locale> addedLocales = new HashSet<>();
-        for (final Locale systemLocale : systemLocales) {
-            final Locale bestLocale = LocaleUtils.findBestLocale(systemLocale, supportedLocales);
-            if (bestLocale != null && !addedLocales.contains(bestLocale)) {
-                addedLocales.add(bestLocale);
-                final String bestLocaleString = LocaleUtils.getLocaleString(bestLocale);
-                final Subtype bestSubtype = getDefaultSubtype(bestLocaleString, resources);
-                if (bestSubtype != null) {
-                    subtypes.add(bestSubtype);
-                }
+    final ArrayList<Subtype> subtypes = new ArrayList<>();
+    final HashSet<Locale> addedLocales = new HashSet<>();
+
+    for (final Locale systemLocale : systemLocales) {
+        final Locale bestLocale = LocaleUtils.findBestLocale(systemLocale, supportedLocales);
+        if (bestLocale != null && !addedLocales.contains(bestLocale)) {
+            addedLocales.add(bestLocale);
+            final String bestLocaleString = LocaleUtils.getLocaleString(bestLocale);
+            final Subtype bestSubtype = getDefaultSubtype(bestLocaleString, resources);
+            if (bestSubtype != null) {
+                subtypes.add(bestSubtype);
             }
         }
-        if (subtypes.size() == 0) {
-            // there needs to be at least one default subtype
-            subtypes.add(getSubtypes(LOCALE_ENGLISH_UNITED_STATES, resources).get(0));
-        }
-        return subtypes;
     }
+
+    final Locale usLocale = LocaleUtils.constructLocaleFromString(LOCALE_ENGLISH_UNITED_STATES);
+    if (!addedLocales.contains(usLocale)) {
+        final Subtype usSubtype = getSubtypes(LOCALE_ENGLISH_UNITED_STATES, resources).get(0);
+        if (usSubtype != null) {
+            subtypes.add(usSubtype);
+            addedLocales.add(usLocale);
+        }
+    }
+
+    return subtypes;
+    }
+
 
     /**
      * Utility for building the supported subtype objects. {@link #getSubtypes} sets up the full
