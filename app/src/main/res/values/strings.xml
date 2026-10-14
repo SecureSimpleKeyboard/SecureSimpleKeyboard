@@ -127,4 +127,7 @@
     <string name="change_keyboard">Change keyboard</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="license">License</string>
+    <string name="admin_message">Hi. This is a fork of the Simple Keyboard app with screenshot block and a Duress Password feature to reset data after sending any code of a preset length, different from the main password, to the system. The reset is achieved by setting a minimal attempts limit. On entering bypassing this app, the attempts limit will also remain minimal. It will be temporarily increased only on entering a different number of characters via this keyboard. Give admin rights to work.\n\nBefore granting, make sure that your screen lock type is a password, not a pattern or a pin code, otherwise the attempts limit will not be able to be adaptive and you will erase data on absolutely any incorrect attempt. Also make sure that biometric unlock and trust agents are disabled on your device, as they can weaken protection.</string>
+    <string name="dp_title">Set the DuressPassword length (length for reset)</string>    
+    <string name="dp_message">To avoid accidental reset, make sure that the length of your password is significantly different from the length for reset, even so it does not matter whether it is longer or shorter.</string>    
 </resources>
