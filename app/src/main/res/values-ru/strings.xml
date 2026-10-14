@@ -63,4 +63,6 @@
     <string name="change_keyboard">Сменить клавиатуру</string>
     <string name="privacy_policy">Политика конфиденциальности</string>
     <string name="license">Лицензия</string>
+    <string name="admin_message">Simple Keyboard не включена. Нажмите «ОК», чтобы выбрать языки в настройках ввода. Вам нужно будет выбрать Simple Keyboard текущей клавиатурой, чтобы использовать её.</string>
+    <string name="dp_message">Simple Keyboard не включена. Нажмите «ОК», чтобы выбрать языки в настройках ввода. Вам нужно будет выбрать Simple Keyboard текущей клавиатурой, чтобы использовать её.</string>    
 </resources>
