@@ -78,6 +78,7 @@ public class SettingsActivity extends PreferenceActivity {
     protected void onCreate(final Bundle savedState) {
         super.onCreate(savedState);
 	    getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);  		
+		getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);						    		
 		
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             final View container = (View) getListView().getParent().getParent();
