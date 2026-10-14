@@ -2,24 +2,29 @@ apply plugin: 'com.android.application'
 
 android {
     defaultConfig {
-        applicationId "rkr.simplekeyboard.inputmethod"
+        applicationId "securesimplekeyboard.securesimplekeyboard"
         compileSdk 37
         minSdkVersion 24
         targetSdkVersion 37
-        versionCode 148
-        versionName "6.7"
+        versionCode 1
+        versionName "1.0"
     }
     buildTypes {
         release {
             minifyEnabled true
+            crunchPngs false     
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
     namespace 'rkr.simplekeyboard.inputmethod'
 
+    aaptOptions {
+        additionalParameters "--rename-resources-package", "rkr.simplekeyboard.inputmethod"
+    }
+
     dependenciesInfo {
         includeInApk = false
-        includeInBundle = false
+        includeInBundle = false        
     }
 }
 
