@@ -1,0 +1,1 @@
+The SecureSimpleKeyboard app — a fork of Simple Keyboard with improved security
