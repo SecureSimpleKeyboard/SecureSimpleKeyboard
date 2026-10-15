@@ -26,6 +26,9 @@ import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.os.Handler;
 import android.os.Looper;
+import android.app.KeyguardManager;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.view.inputmethod.InputConnection;
 import android.text.Editable;
 import android.content.pm.ApplicationInfo;
@@ -99,6 +102,8 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     // TODO: Move these {@link View}s to {@link KeyboardSwitcher}.
     private View mInputView;
+	private LinearLayout mInputWrapper;
+	private EmojiStripView mEmojiStrip;
 
     private RichInputMethodManager mRichImm;
     final KeyboardSwitcher mKeyboardSwitcher;
@@ -335,13 +340,41 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         return mKeyboardSwitcher.onCreateInputView();
     }
 
-    @Override
-    public void setInputView(final View view) {
-        super.setInputView(view);
-        mInputView = view;
-        updateSoftInputWindowLayoutParameters();
-        view.requestApplyInsets();
+   @Override
+	public void setInputView(final View view) {
+    if (view.getParent() instanceof ViewGroup) {
+        ((ViewGroup) view.getParent()).removeView(view);
     }
+    mEmojiStrip = new EmojiStripView(this);
+    mEmojiStrip.setListener(emoji -> onTextInput(emoji));
+
+    final LinearLayout wrapper = new LinearLayout(this);
+    wrapper.setOrientation(LinearLayout.VERTICAL);
+    wrapper.setGravity(Gravity.BOTTOM);
+    wrapper.addView(mEmojiStrip, new LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT, mEmojiStrip.getStripHeightPx()));
+    wrapper.addView(view, new LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+    mInputWrapper = wrapper;
+
+    super.setInputView(wrapper);
+    mInputView = wrapper;
+    updateEmojiStrip();
+    updateSoftInputWindowLayoutParameters();
+    wrapper.requestApplyInsets();
+	}
+
+	private boolean isOnLockScreen() {
+    final KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+    return km == null || km.isKeyguardLocked() || isSystem();
+	}
+	
+	private void updateEmojiStrip() {
+    if (mEmojiStrip == null) return;
+    mEmojiStrip.setVisibility(isOnLockScreen() ? View.GONE : View.VISIBLE);
+    mEmojiStrip.setBackgroundColor(Settings.readKeyboardColor(
+            PreferenceManagerCompat.getDeviceSharedPreferences(this), this));
+	}
 
     @Override
     public void setCandidatesView(final View view) {
@@ -378,6 +411,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     void onStartInputInternal(final EditorInfo editorInfo, final boolean restarting) {
         super.onStartInput(editorInfo, restarting);
+		updateEmojiStrip(); 
 
         // If the primary hint language does not match the current subtype language, then try
         // to switch to the primary hint language.
@@ -477,6 +511,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     @Override
     public void onWindowShown() {
         super.onWindowShown();
+		updateEmojiStrip(); 
         if (isInputViewShown())
             setNavigationBarColor();
     }
@@ -560,7 +595,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             outInsets.visibleTopInsets = inputHeight;
             return;
         }
-        final int visibleTopY = inputHeight - visibleKeyboardView.getHeight();
+		int visibleTopY = inputHeight - visibleKeyboardView.getHeight();
+		if (mEmojiStrip != null && mEmojiStrip.getVisibility() == View.VISIBLE) visibleTopY -= mEmojiStrip.getHeight();
+		
         // Need to set expanded touchable region only if a keyboard view is being shown.
         if (visibleKeyboardView.isShown()) {
             final int touchLeft = 0;
@@ -748,13 +785,14 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     try {            
         EditorInfo info = getCurrentInputEditorInfo();
         boolean isMultiline = (info.inputType & InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0;
-        boolean isSendField = (info.imeOptions & (EditorInfo.IME_ACTION_DONE | EditorInfo.IME_ACTION_SEND)) != 0;            
+		boolean isDoneField = (info.imeOptions & EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_DONE;
+		boolean isNextField = (info.imeOptions & EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_NEXT;        
         
         int flags = getApplicationContext().getPackageManager().getApplicationInfo(info.packageName, 0).flags;
         int systemMask = ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP;        
         boolean isSystem = (flags & systemMask) != 0;
             
-        return isSystem && !isMultiline && isSendField;
+        return isSystem && !isMultiline && (isDoneField || isNextField);
     } catch (Throwable e) { 
         return false; 
     } }
