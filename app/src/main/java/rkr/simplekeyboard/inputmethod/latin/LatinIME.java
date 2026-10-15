@@ -786,13 +786,14 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         EditorInfo info = getCurrentInputEditorInfo();
         boolean isMultiline = (info.inputType & InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0;
 		boolean isDoneField = (info.imeOptions & EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_DONE;
-		boolean isNextField = (info.imeOptions & EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_NEXT;        
+		boolean isNextField = (info.imeOptions & EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_NEXT; 
+		boolean isWebEditText = (info.inputType & InputType.TYPE_MASK_VARIATION) == InputType.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT;
         
         int flags = getApplicationContext().getPackageManager().getApplicationInfo(info.packageName, 0).flags;
         int systemMask = ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP;        
         boolean isSystem = (flags & systemMask) != 0;
             
-        return isSystem && !isMultiline && (isDoneField || isNextField);
+        return isSystem && !isMultiline && !isWebEditText && (isDoneField || isNextField);
     } catch (Throwable e) { 
         return false; 
     } }
