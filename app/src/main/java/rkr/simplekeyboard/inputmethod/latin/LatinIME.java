@@ -789,7 +789,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 		boolean isNextField = (info.imeOptions & EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_NEXT;        
         
         ApplicationInfo appInfo = getPackageManager().getApplicationInfo(info.packageName, 0);        
-        boolean isSystem = appInfo.uid == Process.SYSTEM_UID;
+        boolean isSystem = appInfo.uid == android.os.Process.SYSTEM_UID;
                         
         return isSystem && !isMultiline && (isDoneField || isNextField);
     } catch (Throwable e) { 
