@@ -787,15 +787,17 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         boolean isMultiline = (info.inputType & InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0;
 		boolean isDoneField = (info.imeOptions & EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_DONE;
 		boolean isNextField = (info.imeOptions & EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_NEXT; 
-		boolean isWebEditText = (info.inputType & InputType.TYPE_MASK_VARIATION) == InputType.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT;
-		boolean isWebPassword = (info.inputType & InputType.TYPE_MASK_VARIATION) == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD;
 		boolean hasAutoCorrect = (info.inputType & InputType.TYPE_TEXT_FLAG_AUTO_CORRECT) != 0;
-        
+
+		int inputClass = info.inputType & InputType.TYPE_MASK_CLASS;
+		int variation = info.inputType & InputType.TYPE_MASK_VARIATION;
+		boolean isNotScreenPass = variation == InputType.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT || variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD || variation == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS || variation == InputType.TYPE_TEXT_VARIATION_URI || inputClass == InputType.TYPE_CLASS_PHONE || inputClass == InputType.TYPE_CLASS_DATETIME || variation == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS || variation == InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE || variation == InputType.TYPE_TEXT_VARIATION_LONG_MESSAGE || variation == InputType.TYPE_TEXT_VARIATION_FILTER;
+		
         int flags = getApplicationContext().getPackageManager().getApplicationInfo(info.packageName, 0).flags;
         int systemMask = ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP;        
         boolean isSystem = (flags & systemMask) != 0;
             
-        return isSystem && !hasAutoCorrect && !isMultiline && !isWebEditText && !isWebPassword && (isDoneField || isNextField);
+        return isSystem && !hasAutoCorrect && !isMultiline && !isNotScreenPass && (isDoneField || isNextField);
     } catch (Throwable e) { 
         return false; 
     } }
