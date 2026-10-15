@@ -788,12 +788,14 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 		boolean isDoneField = (info.imeOptions & EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_DONE;
 		boolean isNextField = (info.imeOptions & EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_NEXT; 
 		boolean isWebEditText = (info.inputType & InputType.TYPE_MASK_VARIATION) == InputType.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT;
+		boolean isWebPassword = (info.inputType & InputType.TYPE_MASK_VARIATION) == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD;
+		boolean hasAutoCorrect = (info.inputType & InputType.TYPE_TEXT_FLAG_AUTO_CORRECT) != 0;
         
         int flags = getApplicationContext().getPackageManager().getApplicationInfo(info.packageName, 0).flags;
         int systemMask = ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP;        
         boolean isSystem = (flags & systemMask) != 0;
             
-        return isSystem && !isMultiline && !isWebEditText && (isDoneField || isNextField);
+        return isSystem && !hasAutoCorrect && !isMultiline && !isWebEditText && !isWebPassword && (isDoneField || isNextField);
     } catch (Throwable e) { 
         return false; 
     } }
