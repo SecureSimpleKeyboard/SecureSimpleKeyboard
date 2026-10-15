@@ -1,0 +1,1 @@
+Приложение SecureSimpleKeyboard - форк Simple Keyboard с улучшенной безопасностью
