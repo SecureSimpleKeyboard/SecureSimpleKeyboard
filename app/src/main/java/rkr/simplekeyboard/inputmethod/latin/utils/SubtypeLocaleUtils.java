@@ -326,7 +326,9 @@ public final class SubtypeLocaleUtils {
     }
 
     final Locale usLocale = LocaleUtils.constructLocaleFromString(LOCALE_ENGLISH_UNITED_STATES);
-    if (!addedLocales.contains(usLocale)) {
+    final Locale usLocale2 = LocaleUtils.constructLocaleFromString(LOCALE_ENGLISH_INDIA);    
+    final Locale usLocale3 = LocaleUtils.constructLocaleFromString(LOCALE_ENGLISH_GREAT_BRITAIN);    
+    if (!addedLocales.contains(usLocale) && !addedLocales.contains(usLocale2) && !addedLocales.contains(usLocale3)){
         final Subtype usSubtype = getSubtypes(LOCALE_ENGLISH_UNITED_STATES, resources).get(0);
         if (usSubtype != null) {
             subtypes.add(usSubtype);
@@ -336,8 +338,7 @@ public final class SubtypeLocaleUtils {
 
     return subtypes;
     }
-
-
+    
     /**
      * Utility for building the supported subtype objects. {@link #getSubtypes} sets up the full
      * list of available subtypes for a locale, but not all of the subtypes that it requests always
