@@ -13,10 +13,11 @@ public class EmojiStripView extends View {
 
     private static final String[] EMOJIS = {    
         "🔥","💯","✨","🎉","❄️","⭐","🚀","🏷️",
+        "✅","❌","🎁","🌹","❤️","💔","☕","🍕",
         "😀","😁","😂","🙂","😉","😍","😎","😘",
         "🤔","🙄","😭","😢","😞","😡","🤡","🤦",
         "👍","👎","👏","🙌","🙏","🤝","💪","👋",
-        "❤️","💔","✅","❌","🎁","🌹","☕","🍕","🐶","🐱","🐔","🐷"   
+        "🐶","🐷","🐔","🐱"
     };
 
     private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
