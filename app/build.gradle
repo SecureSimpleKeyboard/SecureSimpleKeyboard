@@ -10,10 +10,7 @@ android {
         versionName "1.0"
     }
     buildTypes {
-        release {
-            vcsInfo {
-                include = false
-            }
+        release {            
             minifyEnabled true
             crunchPngs false     
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
