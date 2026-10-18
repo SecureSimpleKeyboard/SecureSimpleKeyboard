@@ -44,6 +44,7 @@
             android:name=".latin.settings.SettingsActivity"
             android:label="@string/english_ime_name"
             android:exported="true"
+			android:screenOrientation="portrait"
             android:theme="@style/platformSettingsTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
