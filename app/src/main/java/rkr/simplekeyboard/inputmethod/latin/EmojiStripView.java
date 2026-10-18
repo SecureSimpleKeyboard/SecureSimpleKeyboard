@@ -12,11 +12,11 @@ public class EmojiStripView extends View {
     public interface Listener { void onEmoji(String emoji); }
 
     private static final String[] EMOJIS = {    
-        "😀","😁","😂","🙂","😉","😍","😘","😎",
+        "🔥","💯","✨","🎉","❄️","⭐","🚀","🏷️",
+        "😀","😁","😂","🙂","😉","😍","😎","😘",
         "🤔","🙄","😭","😢","😞","😡","🤡","🤦",
         "👍","👎","👏","🙌","🙏","🤝","💪","👋",
-        "❤️","💔","🔥","💯","✨","🎉","❄️","⭐","🚀","🏷️",
-        "✅","❌","🎁","🌹","☕","🍕","🐶","🐱","🐔","🐷"   
+        "❤️","💔","✅","❌","🎁","🌹","☕","🍕","🐶","🐱","🐔","🐷"   
     };
 
     private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
