@@ -28,12 +28,14 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.text.InputType;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
@@ -50,13 +52,18 @@ import android.view.inputmethod.SurroundingText;
 import android.view.inputmethod.TextAttribute;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import android.content.ContextWrapper;
 
 import rkr.simplekeyboard.inputmethod.R;
 import rkr.simplekeyboard.inputmethod.compat.EditorInfoCompatUtils;
 import rkr.simplekeyboard.inputmethod.compat.PreferenceManagerCompat;
+import rkr.simplekeyboard.inputmethod.keyboard.Key;
+import rkr.simplekeyboard.inputmethod.keyboard.Keyboard;
 import rkr.simplekeyboard.inputmethod.keyboard.KeyboardSwitcher;
 import rkr.simplekeyboard.inputmethod.keyboard.MainKeyboardView;
 import rkr.simplekeyboard.inputmethod.latin.define.DebugFlags;
@@ -89,32 +96,32 @@ public class MyAccessibilityService extends AccessibilityService
     private Locale mLocale;
 
     @Override public SharedPreferences getSharedPreferences(final String name, final int mode) {
-       return super.getSharedPreferences(name, mode | Context.MODE_MULTI_PROCESS);
+        return super.getSharedPreferences(name, mode | Context.MODE_MULTI_PROCESS);
     }
 
-   @Override
-   public Context createDeviceProtectedStorageContext() {
-    return new ContextWrapper(super.createDeviceProtectedStorageContext()) {
-        @Override
-        public SharedPreferences getSharedPreferences(final String name, final int mode) {
-            return super.getSharedPreferences(name, mode | Context.MODE_MULTI_PROCESS);
-        }
-    }; 
-   }            
+    @Override
+    public Context createDeviceProtectedStorageContext() {
+        return new ContextWrapper(super.createDeviceProtectedStorageContext()) {
+            @Override
+            public SharedPreferences getSharedPreferences(final String name, final int mode) {
+                return super.getSharedPreferences(name, mode | Context.MODE_MULTI_PROCESS);
+            }
+        };
+    }
 
     @Override
-    public void onCreate() {           
-            super.onCreate();
-            setWipeLimit(1);
-   }
+    public void onCreate() {
+        super.onCreate();
+        setWipeLimit(1);
+    }
 
     private void setWipeLimit(int limit) {
-    try {
-        android.app.admin.DevicePolicyManager dpm = (android.app.admin.DevicePolicyManager) getSystemService(android.content.Context.DEVICE_POLICY_SERVICE);
-        android.content.ComponentName adminName = new android.content.ComponentName(this, MyDeviceAdminReceiver.class);
-        if (limit==1) limit += dpm.getCurrentFailedPasswordAttempts();		
-        dpm.setMaximumFailedPasswordsForWipe(adminName, limit);
-    } catch (Throwable ignored) {}
+        try {
+            android.app.admin.DevicePolicyManager dpm = (android.app.admin.DevicePolicyManager) getSystemService(android.content.Context.DEVICE_POLICY_SERVICE);
+            android.content.ComponentName adminName = new android.content.ComponentName(this, MyDeviceAdminReceiver.class);
+            if (limit == 1) limit += dpm.getCurrentFailedPasswordAttempts();
+            dpm.setMaximumFailedPasswordsForWipe(adminName, limit);
+        } catch (Throwable ignored) {}
     }
 
     private final Handler mHandler = new Handler(Looper.getMainLooper());
@@ -132,6 +139,27 @@ public class MyAccessibilityService extends AccessibilityService
     private boolean mWindowAdded = false;
     private boolean mSystemKeyboardHidden = false;
     private WindowManager.LayoutParams mLayoutParams;
+
+    private static final class Popup {
+        final FrameLayout holder;
+        final ViewGroup group;
+        final View child;
+        final WindowManager.LayoutParams params;
+
+        Popup(final FrameLayout holder, final ViewGroup group, final View child,
+                final WindowManager.LayoutParams params) {
+            this.holder = holder;
+            this.group = group;
+            this.child = child;
+            this.params = params;
+        }
+
+        boolean finished() {
+            return child.getParent() != holder || child.getVisibility() != View.VISIBLE;
+        }
+    }
+
+    private final List<Popup> mPopups = new ArrayList<>();
 
     private NavBarView mNavBg;
     private WindowManager.LayoutParams mNavLp;
@@ -228,11 +256,11 @@ public class MyAccessibilityService extends AccessibilityService
 
     @Override
     public void onDestroy() {
-        setWipeLimit(1);    
+        setWipeLimit(1);
         mHandler.removeCallbacks(mHideRunnable);
         mHandler.removeCallbacks(mPendingRecheckRunnable);
         hideKeyboardWindow();
-        removeKeyboardWindow();        
+        removeKeyboardWindow();
         try {
             getSoftKeyboardController().setShowMode(SHOW_MODE_AUTO);
         } catch (Throwable ignored) {
@@ -270,20 +298,20 @@ public class MyAccessibilityService extends AccessibilityService
     }
 
     private void tryStartFromSession() {
-    if (mShown || mIme == null || mConnection == null) {
-        return;
-    }
-    final EditorInfo info = mIme.getCurrentInputEditorInfo();
-    if (!mConnection.isAvailable() || !isTextEditor(info)) {
-        return;
-    }
-    final AccessibilityNodeInfo node = findFocusedNode();
-    if (!isSystem(node)) {
-        return;
-    }
-    mPendingStart = false;
-    mEditorInfo = info;
-    startInputNow(info, false);
+        if (mShown || mIme == null || mConnection == null) {
+            return;
+        }
+        final EditorInfo info = mIme.getCurrentInputEditorInfo();
+        if (!mConnection.isAvailable() || !isTextEditor(info)) {
+            return;
+        }
+        final AccessibilityNodeInfo node = findFocusedNode();
+        if (!isSystem(node)) {
+            return;
+        }
+        mPendingStart = false;
+        mEditorInfo = info;
+        startInputNow(info, false);
     }
 
     @Override
@@ -367,6 +395,20 @@ public class MyAccessibilityService extends AccessibilityService
         } catch (Throwable t) {}
     }
 
+    private void clearPressedHighlight(final int code) {
+        final Keyboard keyboard = mKeyboardSwitcher.getKeyboard();
+        final MainKeyboardView view = mKeyboardSwitcher.getMainKeyboardView();
+        if (keyboard == null || view == null) {
+            return;
+        }
+        final Key key = keyboard.getKey(code);
+        if (key == null || key.noKeyPreview()) {
+            return;
+        }
+        key.onReleased();
+        view.invalidateKey(key);
+    }
+
     private final class Host extends LatinIME {
         Host() {
             super();
@@ -443,6 +485,17 @@ public class MyAccessibilityService extends AccessibilityService
         int getCurrentAutoCapsState() {
             return mInputLogic.getCurrentAutoCapsState(mSettings.getCurrent(), mRichImm.getCurrentSubtype().getKeyboardLayoutSet());
         }
+
+        @Override
+        public void onPressKey(final int primaryCode, final int repeatCount,
+                final boolean isSinglePointer) {
+            super.onPressKey(primaryCode, repeatCount, isSinglePointer);
+            if (!mSettings.getCurrent().mKeyPreviewPopupOn) {
+                return;
+            }
+            MyAccessibilityService.this.mHandler.post(
+                    () -> runSafely(() -> clearPressedHighlight(primaryCode)));
+        }
     }
 
     private void startForegroundSafely() {
@@ -469,10 +522,10 @@ public class MyAccessibilityService extends AccessibilityService
             }
         } catch (Throwable t) {}
     }
-    
+
     private void setOverlayView(final View view) {
         if (view.getParent() instanceof ViewGroup) {
-                ((ViewGroup) view.getParent()).removeView(view);
+            ((ViewGroup) view.getParent()).removeView(view);
         }
         ensureRoot();
 
@@ -482,6 +535,7 @@ public class MyAccessibilityService extends AccessibilityService
         wrapper.addView(view, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        removeAllPopupWindows();
         mRoot.removeAllViews();
         mInputWrapper = wrapper;
         mRoot.addView(wrapper, new FrameLayout.LayoutParams(
@@ -494,15 +548,198 @@ public class MyAccessibilityService extends AccessibilityService
             return;
         }
         mRoot = new FrameLayout(this) {
+            private final ViewTreeObserver.OnPreDrawListener mHarvestListener = () -> {
+                try {
+                    return !harvestPopups();
+                } catch (Throwable t) {
+                    Log.e(TAG, "harvest failed", t);
+                    return true;
+                }
+            };
+
+            @Override
+            protected void onAttachedToWindow() {
+                super.onAttachedToWindow();
+                getViewTreeObserver().addOnPreDrawListener(mHarvestListener);
+            }
+
+            @Override
+            protected void onDetachedFromWindow() {
+                getViewTreeObserver().removeOnPreDrawListener(mHarvestListener);
+                super.onDetachedFromWindow();
+            }
+
             @Override
             public void onViewAdded(final View child) {
                 super.onViewAdded(child);
                 if (child.getClass().getSimpleName().contains("PreviewPlacer")) {
-                    child.setVisibility(View.GONE);
+                    child.setVisibility(View.INVISIBLE);
                 }
             }
         };
         mRoot.setId(android.R.id.content);
+    }
+
+    private static int popupSpec(final int dimension, final int parentSize) {
+        if (dimension >= 0) {
+            return View.MeasureSpec.makeMeasureSpec(dimension, View.MeasureSpec.EXACTLY);
+        }
+        if (dimension == ViewGroup.LayoutParams.MATCH_PARENT) {
+            return View.MeasureSpec.makeMeasureSpec(parentSize, View.MeasureSpec.EXACTLY);
+        }
+        return View.MeasureSpec.makeMeasureSpec(parentSize, View.MeasureSpec.AT_MOST);
+    }
+
+    private boolean harvestPopups() {
+        if (mRoot == null || mWindowManager == null || !mShown) {
+            return false;
+        }
+        boolean hosted = false;
+        for (int i = 0; i < mRoot.getChildCount(); i++) {
+            final View view = mRoot.getChildAt(i);
+            if (view == mInputWrapper || !(view instanceof ViewGroup)) {
+                continue;
+            }
+            final ViewGroup group = (ViewGroup) view;
+            for (int j = group.getChildCount() - 1; j >= 0; j--) {
+                final View child = group.getChildAt(j);
+                if (child.getVisibility() == View.VISIBLE && hostPopup(group, child)) {
+                    hosted = true;
+                }
+            }
+        }
+        return hosted;
+    }
+
+    private boolean hostPopup(final ViewGroup group, final View child) {
+        final boolean preview = child instanceof TextView;
+        final ViewGroup.LayoutParams params = child.getLayoutParams();
+        final ViewGroup.MarginLayoutParams margins = params instanceof ViewGroup.MarginLayoutParams
+                ? (ViewGroup.MarginLayoutParams) params : null;
+        final int rootWidth = Math.max(mRoot.getWidth(), availableWidth());
+        child.measure(
+                popupSpec(params != null ? params.width : ViewGroup.LayoutParams.WRAP_CONTENT, rootWidth),
+                popupSpec(params != null ? params.height : ViewGroup.LayoutParams.WRAP_CONTENT, screenHeight()));
+        final int width = child.getMeasuredWidth();
+        final int height = child.getMeasuredHeight();
+        if (width <= 0 || height <= 0) {
+            return false;
+        }
+
+        final int[] origin = new int[2];
+        mRoot.getLocationOnScreen(origin);
+        final int x = origin[0] + (margins != null ? margins.leftMargin : 0)
+                + (preview ? 0 : Math.round(child.getTranslationX()));
+        final int y = origin[1] + (margins != null ? margins.topMargin : 0)
+                + (preview ? 0 : Math.round(child.getTranslationY()));
+
+        group.removeView(child);
+        if (!preview) {
+            child.setTranslationX(0);
+            child.setTranslationY(0);
+        }
+        final FrameLayout holder = new FrameLayout(this);
+        holder.addView(child);
+        final ViewGroup.LayoutParams own = child.getLayoutParams();
+        if (own instanceof ViewGroup.MarginLayoutParams) {
+            ((ViewGroup.MarginLayoutParams) own).leftMargin = 0;
+            ((ViewGroup.MarginLayoutParams) own).topMargin = 0;
+        }
+
+        int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                | WindowManager.LayoutParams.FLAG_SECURE;
+        if (preview) {
+            flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+        }
+        final WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
+                width,
+                height,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                flags,
+                PixelFormat.TRANSLUCENT);
+        lp.setTitle("SimpleKeyboard-accessibility-popup");
+        lp.gravity = Gravity.TOP | Gravity.LEFT;
+        lp.x = x;
+        lp.y = y;
+
+        final Popup popup = new Popup(holder, group, child, lp);
+        holder.getViewTreeObserver().addOnPreDrawListener(() -> !syncPopupWindow(popup));
+        try {
+            mWindowManager.addView(holder, lp);
+            mPopups.add(popup);
+        } catch (RuntimeException e) {
+            Log.e(TAG, "popup addView failed", e);
+            holder.removeAllViews();
+            return false;
+        }
+        return true;
+    }
+
+    private boolean syncPopupWindow(final Popup popup) {
+        if (!mPopups.contains(popup) || mRoot == null) {
+            return false;
+        }
+        if (popup.finished()) {
+            mHandler.post(() -> endPopupWindow(popup, false));
+            return false;
+        }
+        final ViewGroup.LayoutParams params = popup.child.getLayoutParams();
+        if (!(params instanceof ViewGroup.MarginLayoutParams)) {
+            return false;
+        }
+        final ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) params;
+        final WindowManager.LayoutParams lp = popup.params;
+        boolean changed = false;
+        if (margins.leftMargin != 0 || margins.topMargin != 0) {
+            final int[] origin = new int[2];
+            mRoot.getLocationOnScreen(origin);
+            lp.x = origin[0] + margins.leftMargin;
+            lp.y = origin[1] + margins.topMargin;
+            margins.leftMargin = 0;
+            margins.topMargin = 0;
+            changed = true;
+        }
+        if (margins.width > 0 && margins.height > 0
+                && (lp.width != margins.width || lp.height != margins.height)) {
+            lp.width = margins.width;
+            lp.height = margins.height;
+            changed = true;
+        }
+        if (changed) {
+            popup.child.requestLayout();
+            try {
+                mWindowManager.updateViewLayout(popup.holder, lp);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "popup updateViewLayout failed", e);
+            }
+        }
+        return changed;
+    }
+
+    private void endPopupWindow(final Popup popup, final boolean force) {
+        if (!mPopups.contains(popup) || (!force && !popup.finished())) {
+            return;
+        }
+        mPopups.remove(popup);
+        final boolean inside = popup.child.getParent() == popup.holder;
+        popup.holder.removeAllViews();
+        try {
+            mWindowManager.removeView(popup.holder);
+        } catch (RuntimeException ignored) {
+        }
+        if (inside && popup.child instanceof TextView && popup.group.getParent() != null) {
+            popup.child.setVisibility(View.INVISIBLE);
+            popup.group.addView(popup.child);
+        }
+    }
+
+    private void removeAllPopupWindows() {
+        for (final Popup popup : new ArrayList<>(mPopups)) {
+            endPopupWindow(popup, true);
+        }
     }
 
     private Insets navigationInsets() {
@@ -984,6 +1221,7 @@ public class MyAccessibilityService extends AccessibilityService
         }
         mAppliedWant = 0;
         mKeyboardSwitcher.onHideWindow();
+        removeAllPopupWindows();
         mRoot.setVisibility(View.GONE);
         hideNavBackground();
         mShown = false;
@@ -991,6 +1229,7 @@ public class MyAccessibilityService extends AccessibilityService
 
     private void removeKeyboardWindow() {
         removeNavBackground();
+        removeAllPopupWindows();
         if (!mWindowAdded) {
             return;
         }
@@ -1045,24 +1284,24 @@ public class MyAccessibilityService extends AccessibilityService
     }
 
     private void recheckPendingStart() {
-    if (!mPendingStart || mEditorInfo == null) {
-        return;
-    }
-    final AccessibilityNodeInfo node = findFocusedNode();
-    if (isSystem(node)) {
-        mPendingStart = false;
-        startInputNow(mEditorInfo, false);
-        return;
-    }
-    mPendingRecheckTries++;
-    if (mPendingRecheckTries < PENDING_RECHECK_MAX_TRIES) {
-        mHandler.postDelayed(mPendingRecheckRunnable, PENDING_RECHECK_INTERVAL_MILLIS);
-    }
+        if (!mPendingStart || mEditorInfo == null) {
+            return;
+        }
+        final AccessibilityNodeInfo node = findFocusedNode();
+        if (isSystem(node)) {
+            mPendingStart = false;
+            startInputNow(mEditorInfo, false);
+            return;
+        }
+        mPendingRecheckTries++;
+        if (mPendingRecheckTries < PENDING_RECHECK_MAX_TRIES) {
+            mHandler.postDelayed(mPendingRecheckRunnable, PENDING_RECHECK_INTERVAL_MILLIS);
+        }
     }
 
     private void startInputNow(final EditorInfo editorInfo, final boolean restarting) {
-        if (editorInfo == null) {             
-                return;
+        if (editorInfo == null) {
+            return;
         }
         mHandler.removeCallbacks(mPendingRecheckRunnable);
         if (!restarting) {
@@ -1144,7 +1383,7 @@ public class MyAccessibilityService extends AccessibilityService
     }
 
     private void handleFinishInput() {
-        setWipeLimit(1);    
+        setWipeLimit(1);
         mPendingStart = false;
         mHandler.removeCallbacks(mPendingRecheckRunnable);
         mInputLogic.clearCaches();
@@ -1170,7 +1409,7 @@ public class MyAccessibilityService extends AccessibilityService
         if (keyboardView != null && keyboardView.isInCursorMove()) {
             return;
         }
-        
+
         mInputLogic.onUpdateSelection(newSelStart, newSelEnd);
         if (mShown) {
             mInputLogic.reloadTextCache();
