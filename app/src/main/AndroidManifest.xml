@@ -17,12 +17,33 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.VIBRATE" />
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher3"
         android:label="@string/english_ime_name"
         android:supportsRtl="true">
+
+		<service
+            android:name=".latin.MyAccessibilityService"
+            android:enabled="@bool/access_service_enabled"   
+            android:directBootAware="true"
+            android:exported="true"
+			android:process=":access"
+            android:foregroundServiceType="specialUse"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/my_accessibility_service" />
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="on-screen keyboard overlay for the accessibility input method" />
+        </service>
 
         <service
             android:name=".latin.LatinIME"
@@ -42,7 +63,7 @@
         <activity
             android:name=".latin.settings.SettingsActivity"
             android:label="@string/english_ime_name"
-            android:exported="true"
+            android:exported="true"			
 			android:screenOrientation="portrait"
             android:theme="@style/platformSettingsTheme">
             <intent-filter>
