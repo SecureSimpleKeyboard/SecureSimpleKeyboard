@@ -49,6 +49,81 @@ public class SettingsActivity extends PreferenceActivity {
 	private AlertDialog setupDialog;
 	private AlertDialog setupAdminDialog;
 
+    private boolean isAccessibilityServiceEnabled() {
+    try {
+        final String enabled = Settings.Secure.getString(
+                getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        if (enabled == null) return false;
+        final String prefix = getPackageName() + "/";
+        for (final String s : enabled.split(":")) {
+            if (s.startsWith(prefix)) return true;
+        }
+    } catch (Exception e) {
+        Log.e(TAG, "Accessibility check failed", e);
+    }
+    return false;
+    }
+
+	private AlertDialog accessibilityWarnDialog;
+
+    private void showAccessibilityWarningDialog() {    
+    if (accessibilityWarnDialog != null) return;
+	if (Build.VERSION.SDK_INT < 33) return;	
+	final android.content.SharedPreferences prefs = getApplicationContext().createDeviceProtectedStorageContext().getSharedPreferences("ac_rules", Context.MODE_PRIVATE);
+    if (prefs.getBoolean("accessibility_warn_shown", false) || isAccessibilityServiceEnabled()) return;    	
+		
+    final boolean russian = "ru".equals(java.util.Locale.getDefault().getLanguage());
+
+    final String message = russian
+            ? "Предупреждение! На некоторых китайских телефонах (Realme, Oppo, ColorOS...) " +
+              "сторонние клавиатуры могут не работать в полях ввода паролей даже если назначены по умолчанию. " +
+              "В таком случае приложение предлагает экспериментальную функцию работы через Спецвозможности.\n\n" +
+              "Спецвозможности нестабильны! Напомним, что в случае пропажи клавиатуры (или до её активации) " +
+              "достаточно просто ввести неверный пароль от 4х символов для удаления данных " +
+              "(не важно случайно или специально)."
+            : "Warning! On some Chinese phones (Realme, Oppo, ColorOS...) third-party keyboards " +
+              "may not work in password fields even when set as default. " +
+              "In that case the app offers an experimental mode that works through Accessibility features.\n\n" +
+              "Accessibility features is unstable! Reminder: if the keyboard disappears (or before it is activated), " +
+              "simply entering a wrong password of 4 or more characters will erase the data " +
+              "(whether accidentally or on purpose).";
+
+    final String positiveText = russian
+            ? "Это про мой телефон (нужны Спецвозможности)"
+            : "That's about my phone (Accessibility is required)";
+    final String negativeText = russian
+            ? "У меня нормальный телефон"
+            : "My phone is fine";
+
+    AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+    dialogBuilder.setMessage(message);
+    dialogBuilder.setPositiveButton(positiveText, new DialogInterface.OnClickListener() {
+        public void onClick(DialogInterface dialog, int id) {
+            Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            SettingsActivity.this.startActivity(intent);
+            dialog.dismiss();            
+        }
+    });
+    dialogBuilder.setNegativeButton(negativeText, new DialogInterface.OnClickListener() {
+        public void onClick(DialogInterface dialog, int id) {
+            prefs.edit().putBoolean("accessibility_warn_shown", true).commit();
+            dialog.dismiss();
+        }
+    });
+    dialogBuilder.setCancelable(false);
+    accessibilityWarnDialog = dialogBuilder.create();
+    accessibilityWarnDialog.show();
+
+    android.view.Window w = accessibilityWarnDialog.getWindow();
+    if (w != null) {
+        w.addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        android.view.WindowManager.LayoutParams lp = w.getAttributes();
+        lp.gravity = android.view.Gravity.CENTER;
+        lp.x = 0;
+        lp.y = 0;
+        w.setAttributes(lp);
+    } }
+
     /**
      * Check if this IME is enabled in the system.
      * @return whether this IME is enabled in the system.
@@ -107,6 +182,8 @@ public class SettingsActivity extends PreferenceActivity {
     protected void onResume() {
         super.onResume();
 		    getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);				
+
+		    if (accessibilityWarnDialog != null && !accessibilityWarnDialog.isShowing()) accessibilityWarnDialog = null;			
 		    		
 			ComponentName adminComponent = new ComponentName(this, rkr.simplekeyboard.inputmethod.latin.MyDeviceAdminReceiver.class);
 			DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
@@ -130,6 +207,8 @@ public class SettingsActivity extends PreferenceActivity {
 				InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
 				imm.showInputMethodPicker();
 			}, 500);			
+		} else if (isInputMethodOfThisImeEnabled() && (duressDialog == null || !duressDialog.isShowing())) {
+			showAccessibilityWarningDialog();
 		}
 	}
 
@@ -258,6 +337,10 @@ public class SettingsActivity extends PreferenceActivity {
 				setupAdminDialog.dismiss();
 			}
 			setupAdminDialog = null;
+		}
+		if (accessibilityWarnDialog != null) {
+			if (accessibilityWarnDialog.isShowing()) accessibilityWarnDialog.dismiss();
+			accessibilityWarnDialog = null;
 		}
     }
 
