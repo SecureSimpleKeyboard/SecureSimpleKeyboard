@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeViewClicked|typeViewFocused"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagInputMethodEditor|flagRetrieveInteractiveWindows"    
+    android:canRetrieveWindowContent="true"
+    android:description="@string/english_ime_name"
+    android:settingsActivity="rkr.simplekeyboard.inputmethod.latin.settings.SettingsActivity"    
+    android:notificationTimeout="100" />
