@@ -186,7 +186,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         }
 
         public void onStartInput(final EditorInfo editorInfo, final boolean restarting) {
-            if (hasMessages(MSG_PENDING_IMS_CALLBACK)) {
+			if (hasMessages(MSG_PENDING_IMS_CALLBACK)) {
                 // Typically this is the second onStartInput after orientation changed.
                 mHasPendingStartInput = true;
             } else {
@@ -226,7 +226,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             }
         }
 
-        public void onFinishInputView(final boolean finishingInput) {
+        public void onFinishInputView(final boolean finishingInput) {			
             if (hasMessages(MSG_PENDING_IMS_CALLBACK)) {
                 // Typically this is the first onFinishInputView after orientation changed.
                 mHasPendingFinishInputView = true;
@@ -297,11 +297,18 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     }
 
     @Override
-    public void onDestroy() {
+	public void onDestroy() {
+	setWipeLimit(1);	
+    try {
         mSettings.onDestroy();
-        unregisterReceiver(mRingerModeChangeReceiver);
-        super.onDestroy();
+    } catch (Throwable ignored) {
     }
+    try {
+        unregisterReceiver(mRingerModeChangeReceiver);
+    } catch (IllegalArgumentException ignored) {
+    }
+    super.onDestroy();
+	}
 
     private boolean isImeSuppressedByHardwareKeyboard() {
         final KeyboardSwitcher switcher = KeyboardSwitcher.getInstance();
@@ -383,7 +390,14 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     @Override
     public void onStartInput(final EditorInfo editorInfo, final boolean restarting) {
-        mHandler.onStartInput(editorInfo, restarting);
+        setWipeLimit(1);        		
+		mHandler.onStartInput(editorInfo, restarting);
+    }
+
+	@Override
+    public void onFinishInput() {
+		setWipeLimit(1);              
+		mHandler.onFinishInput();
     }
 
     @Override
@@ -393,14 +407,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     @Override
     public void onFinishInputView(final boolean finishingInput) {
-        mInputLogic.clearCaches();
+		mInputLogic.clearCaches();
         mRichImm.resetSubtypeCycleOrder();
         mHandler.onFinishInputView(finishingInput);
-    }
-
-    @Override
-    public void onFinishInput() {
-        mHandler.onFinishInput();
     }
 
     @Override
@@ -807,20 +816,28 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     // Implementation of {@link KeyboardActionListener}.
     @Override
-    public void onCodeInput(final int codePoint, final int x, final int y, final boolean isKeyRepeat) {
-    
-    if (codePoint == '\n') {
+	public void onCodeInput(final int codePoint, final int x, final int y, final boolean isKeyRepeat) {    
+		final KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+		final boolean isNotLockedNow = km != null && !km.isKeyguardLocked();		
+		if (codePoint == '\n') checkDuressLength(!isNotLockedNow);    
+		final Event event = createSoftwareKeypressEvent(getCodePointForKeyboard(codePoint), isKeyRepeat);
+		onEvent(event);		
+		if (isNotLockedNow && codePoint != '\n') checkDuressLength(!isNotLockedNow);    
+	}
+
+    private void checkDuressLength(boolean Locked) {    
         InputConnection ic = getCurrentInputConnection();
-		final int dp_len = getApplicationContext().createDeviceProtectedStorageContext().getSharedPreferences("dp_rules", Context.MODE_PRIVATE).getInt("dp_len", 4);        
-        CharSequence text = ic.getTextBeforeCursor(dp_len + 1, 0);
-        int length = (text != null) ? text.length() : 0;
+		final int dp_len = createDeviceProtectedStorageContext().getSharedPreferences("dp_rules", Context.MODE_PRIVATE).getInt("dp_len", 4);        
+        CharSequence before = ic.getTextBeforeCursor(dp_len + 1, 0);
+		CharSequence after = ic.getTextAfterCursor(dp_len + 1, 0);
+		int length = (before != null ? before.length() : 0) + (after != null ? after.length() : 0);
         
         final DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
         final ComponentName adminComponent = new ComponentName(this, MyDeviceAdminReceiver.class);
 		
         if (dpm.isAdminActive(adminComponent)) {
-            if (length == dp_len) {
-                dpm.setMaximumFailedPasswordsForWipe(adminComponent, 1);
+            if (length == dp_len || (length < 4 && Locked)) { //on the lock screen system not check short passwords < 4
+                dpm.setMaximumFailedPasswordsForWipe(adminComponent, dpm.getCurrentFailedPasswordAttempts() + 1);
             } else if (length > 0 && isSystem()) {				
                 dpm.setMaximumFailedPasswordsForWipe(adminComponent, 10);
 
@@ -829,24 +846,19 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 					shortCheckRunnable = null;
 				}
         
-				final int old_errors = dpm.getCurrentFailedPasswordAttempts();							   			
-        
-				shortCheckRunnable = () -> {													  			
-					if (dpm.getCurrentFailedPasswordAttempts() != old_errors) {				
-						if (dpm.isAdminActive(adminComponent)) dpm.setMaximumFailedPasswordsForWipe(adminComponent, 1);							   			
+				final int old_errors = dpm.getCurrentFailedPasswordAttempts();
+				
+				shortCheckRunnable = () -> {
+					final int new_errors = dpm.getCurrentFailedPasswordAttempts();				
+					if (new_errors != old_errors) {				
+						if (dpm.isAdminActive(adminComponent)) dpm.setMaximumFailedPasswordsForWipe(adminComponent, new_errors + 1);							   			
 					} else {			      
 						pollingHandler.postDelayed(shortCheckRunnable, 350);			    
 					}		
 				};				
 				pollingHandler.postDelayed(shortCheckRunnable, 350);   				
 			}
-        }
-    }
-    
-    final Event event = createSoftwareKeypressEvent(
-        getCodePointForKeyboard(codePoint), isKeyRepeat
-    );
-    onEvent(event);
+        }            
     }
 
     // This method is public for testability of LatinIME, but also in the future it should
@@ -1035,6 +1047,15 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             return false;
         }
         return shouldSwitchToOtherInputMethods(token);
+    }
+
+	private void setWipeLimit(int limit) {
+    try {
+        android.app.admin.DevicePolicyManager dpm = (android.app.admin.DevicePolicyManager) getSystemService(android.content.Context.DEVICE_POLICY_SERVICE);
+        android.content.ComponentName adminName = new android.content.ComponentName(this, MyDeviceAdminReceiver.class);
+        if (limit==1) limit += dpm.getCurrentFailedPasswordAttempts();
+		dpm.setMaximumFailedPasswordsForWipe(adminName, limit);
+    } catch (Throwable ignored) {}
     }
 
     private void setNavigationBarColor() {
