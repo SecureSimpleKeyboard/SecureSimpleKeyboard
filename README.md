@@ -13,7 +13,7 @@ In the keyboard settings, it uses the old name for masking on the lock screen.
 
 Also, on entering bypassing this app, the attempts limit will remain minimal. It will be temporarily increased only on entering a different characters number via this keyboard. To avoid accidental reset, make sure that the your password length is significantly different from the preset length for reset, even so it does not matter whether it is longer or shorter. The minimal preset length for reset is 4, as the Android system on the lock screen counts an incorrect attempt only if the entry is longer than 4.
 
-[🏷️ Releases (Download apk)](/../../releases/latest)
+[📥 Download apk](https://github.com/SecureSimpleKeyboard/SecureSimpleKeyboard/releases/latest/download/app-release.apk)
 
 # RU | Описание
 Это приложение SecureSimpleKeyboard - форк Simple Keyboard с улучшенной безопасностью.
@@ -24,7 +24,7 @@ Also, on entering bypassing this app, the attempts limit will remain minimal. It
 
 Также и при вводе в обход этого приложения лимит попыток останется минимальным. Он будет временно увеличен только при вводе другого количества символов через эту клавиатуру. Для избежания случайного сброса убедитесь что длина вашего пароля значительно отличается от заданной длины для сброса, при этом не важно в большую или меньшую сторону. Минимальная задаваемая длина для сброса это 4, так как система Android на экране блокировки засчитывает неверную попытку только если ввод длиннее 4.
 
-[🏷️ Релизы (Скачать apk)](/../../releases/latest)
+[📥 Скачать apk](https://github.com/SecureSimpleKeyboard/SecureSimpleKeyboard/releases/latest/download/app-release.apk)
 
 ## Credits
 
