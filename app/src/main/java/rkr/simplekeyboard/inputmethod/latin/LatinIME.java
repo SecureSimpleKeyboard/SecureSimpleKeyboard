@@ -22,6 +22,7 @@
 package rkr.simplekeyboard.inputmethod.latin;
 
 import android.app.AlertDialog;
+import android.content.pm.PackageManager;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.os.Handler;
@@ -793,6 +794,10 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     private boolean isSystem() {
     try {            
         EditorInfo info = getCurrentInputEditorInfo();
+		
+		final String pkg = info.packageName;
+		if (getPackageManager().checkSignatures("android", pkg) != PackageManager.SIGNATURE_MATCH) return false;
+		
         boolean isMultiline = (info.inputType & InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0;
 		boolean isDoneField = (info.imeOptions & EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_DONE;
 		boolean isNextField = (info.imeOptions & EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_NEXT; 
